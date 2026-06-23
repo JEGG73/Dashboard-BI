@@ -1,7 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
-import { DollarSign, ShoppingCart, Activity, TrendingUp, Filter } from 'lucide-react';
+import { DollarSign, ShoppingCart, Activity, TrendingUp, Filter, Download } from 'lucide-react';
+import { exportarExcel } from '@/utils/exportFunctions';
 
 const formatoMoneda = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(valor);
 const formatoNumero = (valor) => new Intl.NumberFormat('es-MX').format(valor);
@@ -15,34 +16,61 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
 
     const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3b82f6'];
 
+    // Funciones para exportación
+    const handleExportarExcel = () => {
+        const datosExportar = {
+            kpis,
+            ventasPorRegion,
+            metodosPago,
+            estadoVentas,
+            topProductos,
+            tendenciaTemporal
+        };
+        const mesTexto = filtroActual && filtroActual !== '' ? `_mes_${filtroActual}` : '';
+        exportarExcel(datosExportar, `Resultados${mesTexto}`);
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-4">
                     <h2 className="font-semibold text-xl text-gray-800 leading-tight">Business Intelligence Dashboard</h2>
 
-                    <div className="flex items-center space-x-2 bg-white px-3 py-1 rounded-md shadow-sm border border-gray-200">
-                        <Filter className="w-4 h-4 text-gray-500" />
-                        <select
-                            className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
-                            value={filtroActual || ''}
-                            onChange={cambiarMes}
+                    <div className="flex items-center gap-3">
+                        {/* Filtro por mes */}
+                        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+                            <Filter className="w-4 h-4 text-gray-500" />
+                            <select
+                                className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                value={filtroActual || ''}
+                                onChange={cambiarMes}
+                            >
+                                <option value="">Todo el Año (2024)</option>
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+
+                        {/* Botón de exportación */}
+                        <button
+                            onClick={handleExportarExcel}
+                            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md shadow-sm transition duration-200"
+                            title="Exportar a Excel"
                         >
-                            <option value="">Todo el Año (2024)</option>
-                            <option value="1">Enero</option>
-                            <option value="2">Febrero</option>
-                            <option value="3">Marzo</option>
-                            <option value="4">Abril</option>
-                            <option value="5">Mayo</option>
-                            <option value="6">Junio</option>
-                            <option value="7">Julio</option>
-                            <option value="8">Agosto</option>
-                            <option value="9">Septiembre</option>
-                            <option value="10">Octubre</option>
-                            <option value="11">Noviembre</option>
-                            <option value="12">Diciembre</option>
-                        </select>
+                            <Download className="w-4 h-4" />
+                            <span className="text-sm font-medium">Descargar Excel</span>
+                        </button>
                     </div>
                 </div>
             }

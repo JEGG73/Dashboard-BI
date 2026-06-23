@@ -1,58 +1,51 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📊 Business Intelligence Dashboard - SaaS Data Mart
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plataforma analítica desarrollada para visualizar y auditar métricas de ventas a través de un modelo de estrella (Data Mart). El proyecto integra un proceso ETL completo y un frontend interactivo con componentes reactivos.
 
-## About Laravel
+## 🛠️ Stack Tecnológico
+* **Backend:** Laravel 11, PHP 8.3.29
+* **Frontend:** React, Inertia.js, Recharts, Tailwind CSS
+* **ETL:** Apache Hop
+* **Base de Datos:** MySQL (Laragon)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📦 Estructura del Repositorio
+* `/app/Http/Controllers`: Lógica de consultas y transformaciones (DashboardController).
+* `/resources/js/Pages`: Vistas en React y componentes de gráficas.
+* `/etl_docs`: Contiene los scripts SQL de la base de datos, archivos `.hpl` de Apache Hop y los datasets `.csv` originales.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Guía de Instalación (Para el Equipo)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Clonar el repositorio:**
+   \`\`\`bash
+   git clone https://github.com/JEGG73/Dashboard-BI.git
+   \`\`\`
+2. **Instalar dependencias:**
+   \`\`\`bash
+   composer install
+   npm install
+   \`\`\`
+3. **Configurar el Entorno:**
+   * Duplica el archivo `.env.example` y renómbralo a `.env`.
+   * Genera la llave de la aplicación: `php artisan key:generate`
+   * Configura las credenciales de la base de datos en el `.env`.
+4. **Base de Datos:**
+   * Importa el archivo `datamart_kaggle.sql` ubicado en la carpeta `/etl_docs` dentro de tu gestor de MySQL.
+5. **Ejecutar el proyecto:**
+   Abre dos terminales y ejecuta:
+   \`\`\`bash
+   npm run dev
+   php artisan serve
+   \`\`\`
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 👥 Asignación de Tareas (Próximos Pasos)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Para finalizar la arquitectura del proyecto, las siguientes tareas están listas para ser tomadas:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+* **[ ] Gobierno de Datos y Diccionario :** Revisar los archivos de Apache Hop en `/etl_docs` y documentar el linaje de datos. Describir la estructura del modelo de estrella, los tipos de datos en MySQL y las reglas de negocio aplicadas.
+* **[ ] Plan de Adopción y Manual Técnico :** Documentar el funcionamiento de los filtros interactivos en React, justificar el valor de negocio de los KPIs (Ticket Promedio, Tasa de Cancelación) y redactar la guía de usuario final.
+* **[ ] Feature: Exportación Gerencial :** Implementar la funcionalidad en `Dashboard.jsx` para exportar la vista actual (con filtros aplicados) a un formato PDF o Excel.
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
-```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+*Desarrollado y estructurado por el equipo 4.*

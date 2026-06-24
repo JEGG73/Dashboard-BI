@@ -1,8 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
+import { useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
-import { DollarSign, ShoppingCart, Activity, TrendingUp, Filter, Download } from 'lucide-react';
+import { DollarSign, ShoppingCart, Activity, TrendingUp, Filter, Download, FileText } from 'lucide-react';
 import { exportarExcel } from '@/utils/exportFunctions';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const formatoMoneda = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(valor);
 const formatoNumero = (valor) => new Intl.NumberFormat('es-MX').format(valor);
@@ -21,21 +24,31 @@ const cambiarFiltros = (mes = null, region = null, inicio = null, fin = null) =>
 export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal, filtroActual, regiones, regionActual, fechaInicio, fechaFin, alertas }) {
 
     const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3b82f6'];
+    const reportRef = useRef(null);
 
+    // Exportación a Excel
     const handleExportarExcel = () => {
-        const datosExportar = {
-            kpis,
-            ventasPorRegion,
-            metodosPago,
-            estadoVentas,
-            topProductos,
-            tendenciaTemporal
-        };
+        const datosExportar = { kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal };
         let nombreArchivo = 'Resultados';
         if (filtroActual) nombreArchivo += `_mes_${filtroActual}`;
         if (regionActual) nombreArchivo += `_${regionActual}`;
         if (fechaInicio && fechaFin) nombreArchivo += `_${fechaInicio}_a_${fechaFin}`;
         exportarExcel(datosExportar, nombreArchivo);
+    };
+
+    // Exportación a PDF
+    const handleExportarPDF = () => {
+        const input = reportRef.current;
+        html2canvas(input, { scale: 2, useCORS: true }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`Reporte_Gerencial_${new Date().getTime()}.pdf`);
+        });
     };
 
     return (
@@ -54,7 +67,7 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                                 value={filtroActual || ''}
                                 onChange={(e) => cambiarFiltros(e.target.value || null, regionActual || null, fechaInicio || null, fechaFin || null)}
                             >
-                                <option value="">Todo el Año (2024)</option>
+                                <option value="">Todo el Año</option>
                                 <option value="1">Enero</option>
                                 <option value="2">Febrero</option>
                                 <option value="3">Marzo</option>
@@ -109,15 +122,26 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                             />
                         </div>
 
-                        {/* Botón de exportación */}
-                        <button
-                            onClick={handleExportarExcel}
-                            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md shadow-sm transition duration-200"
-                            title="Exportar a Excel"
-                        >
-                            <Download className="w-4 h-4" />
-                            <span className="text-sm font-medium">Descargar Excel</span>
-                        </button>
+                        {/* Botones de exportación */}
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleExportarExcel}
+                                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md shadow-sm transition duration-200"
+                                title="Exportar a Excel"
+                            >
+                                <Download className="w-4 h-4" />
+                                <span className="text-sm font-medium">Excel</span>
+                            </button>
+
+                            <button
+                                onClick={handleExportarPDF}
+                                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md shadow-sm transition duration-200"
+                                title="Exportar a PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                                <span className="text-sm font-medium">PDF</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             }
@@ -125,27 +149,35 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
             <Head title="Dashboard" />
 
             <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <div ref={reportRef} className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6 bg-gray-50 p-6 rounded-lg">
 
+                    {/* Cabecera del Reporte */}
+                    <div className="mb-4 border-b pb-4">
+                        <h1 className="text-2xl font-bold text-gray-800">Reporte Ejecutivo de Inteligencia de Negocios</h1>
+                        <p className="text-sm text-gray-500">
+                            Filtros aplicados: {regionActual || 'Todas las Regiones'} | Mes: {filtroActual ? filtroActual : 'Anual'}
+                        </p>
+                    </div>
+
+                    {/* Alertas */}
                     {alertas && alertas.length > 0 && (
                         <div className="mb-6 space-y-3">
                             {alertas.map((alerta, index) => (
-                                <div key={index} className={`p-4 rounded-lg flex items-center shadow-sm border ${alerta.tipo === 'danger' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                                    }`}>
+                                <div key={index} className={`p-4 rounded-lg flex items-center shadow-sm border ${alerta.tipo === 'danger' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>
                                     <div className="font-semibold text-sm">{alerta.mensaje}</div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* AVISO DE ROL */}
+                    {/* Aviso de Rol */}
                     {auth.user.role !== 'admin' && (
                         <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg text-sm flex justify-between items-center">
                             <span>Estás visualizando el dashboard en modo <b>Vendedor</b>. Solo tienes acceso a los datos de la región: <b>{auth.user.zona_asignada || 'Centro'}</b>.</span>
                         </div>
                     )}
 
-                    {/* Nivel Ejecutivo */}
+                    {/* Nivel Ejecutivo (KPIs) */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                             <div className="flex items-center space-x-2 mb-2">
@@ -188,31 +220,23 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                         </div>
                     </div>
 
-                    {/* Nivel Táctico */}
+                    {/* Nivel Táctico (Líneas) */}
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border border-gray-100 mb-6">
                         <h3 className="text-lg font-medium mb-4 text-gray-700">Tendencia de Ventas (2024)</h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={tendenciaTemporal}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis
-                                        dataKey="fecha"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tickFormatter={(date) => new Date(date).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                                    />
+                                    <XAxis dataKey="fecha" axisLine={false} tickLine={false} tickFormatter={(date) => new Date(date).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })} />
                                     <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                    <Tooltip
-                                        formatter={(value) => formatoMoneda(value)}
-                                        labelFormatter={(label) => new Date(label).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                    />
+                                    <Tooltip formatter={(value) => formatoMoneda(value)} labelFormatter={(label) => new Date(label).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })} />
                                     <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 8 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Nivel Operativo */}
+                    {/* Nivel Operativo 1 (Barras) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border border-gray-100">
                             <h3 className="text-lg font-medium mb-4 text-gray-700">Top 5 Productos Más Vendidos</h3>
@@ -245,8 +269,8 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                         </div>
                     </div>
 
-                    {/* Nivel Operativo: Métodos de Pago y Estados */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Nivel Operativo 2: Métodos de Pago y Estados */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border border-gray-100">
                             <h3 className="text-lg font-medium mb-4 text-gray-700">Uso de Métodos de Pago</h3>
                             <div className="h-72">
@@ -285,6 +309,53 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                                         <Legend verticalAlign="bottom" height={36} />
                                     </PieChart>
                                 </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tablas de Datos */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border border-gray-100">
+                            <h3 className="text-lg font-medium mb-4 text-gray-700">Tabla: Desglose por Producto</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ingreso Generado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {topProductos && topProductos.map((prod, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{prod.nombre_producto}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-medium">{formatoMoneda(prod.total)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border border-gray-100">
+                            <h3 className="text-lg font-medium mb-4 text-gray-700">Tabla: Desglose por Región</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Región</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ingreso Generado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {ventasPorRegion && ventasPorRegion.map((reg, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{reg.region}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-medium">{formatoMoneda(reg.total)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

@@ -11,6 +11,31 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $mesFiltro = $request->input('mes');
+        $regionFiltro = $request->input('region');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+
+        // Obtener lista de regiones disponibles
+        $regiones = DB::table('dim_clientes')
+            ->select('region')
+            ->distinct()
+            ->orderBy('region')
+            ->pluck('region')
+            ->toArray();
+
+        // Función auxiliar para aplicar filtros de fecha
+        $aplicarFiltrosFecha = function ($query, $mesFiltro, $fechaInicio, $fechaFin) {
+            if ($mesFiltro) {
+                $inicio = 20240000 + ($mesFiltro * 100) + 1;
+                $fin = 20240000 + ($mesFiltro * 100) + 31;
+                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
+            } elseif ($fechaInicio && $fechaFin) {
+                $inicio = intval(str_replace('-', '', $fechaInicio));
+                $fin = intval(str_replace('-', '', $fechaFin));
+                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
+            }
+            return $query;
+        };
 
         // KPIs Generales
         $kpis = DB::table('hechos_ventas')
@@ -20,24 +45,27 @@ class DashboardController extends Controller
                 COUNT(venta_key) as total_transacciones,
                 (SUM(monto_total) / COUNT(venta_key)) as ticket_promedio
             ')
-            ->where('estado_venta', '!=', 'Cancelada')
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('tiempo_key', [$inicio, $fin]);
-            })
+            ->where('estado_venta', '!=', 'Cancelada');
+
+        if ($regionFiltro) {
+            $kpis->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
+                ->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $kpis = $aplicarFiltrosFecha($kpis, $mesFiltro, $fechaInicio, $fechaFin)
             ->first();
 
         // Ventas por Región
         $ventasPorRegion = DB::table('hechos_ventas')
             ->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
             ->select('dim_clientes.region', DB::raw('SUM(hechos_ventas.monto_total) as total'))
-            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada')
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
-            })
+            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada');
+
+        if ($regionFiltro) {
+            $ventasPorRegion->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $ventasPorRegion = $aplicarFiltrosFecha($ventasPorRegion, $mesFiltro, $fechaInicio, $fechaFin)
             ->groupBy('dim_clientes.region')
             ->orderByDesc('total')
             ->get();
@@ -45,23 +73,27 @@ class DashboardController extends Controller
         // Distribución de Métodos de Pago
         $metodosPago = DB::table('hechos_ventas')
             ->join('dim_metodos_pago', 'hechos_ventas.metodo_key', '=', 'dim_metodos_pago.metodo_key')
-            ->select('dim_metodos_pago.tipo_pago', DB::raw('COUNT(hechos_ventas.venta_key) as transacciones'))
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
-            })
+            ->select('dim_metodos_pago.tipo_pago', DB::raw('COUNT(hechos_ventas.venta_key) as transacciones'));
+
+        if ($regionFiltro) {
+            $metodosPago->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
+                ->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $metodosPago = $aplicarFiltrosFecha($metodosPago, $mesFiltro, $fechaInicio, $fechaFin)
             ->groupBy('dim_metodos_pago.tipo_pago')
             ->get();
 
         // Tasa de Cancelación
         $estadoVentas = DB::table('hechos_ventas')
-            ->select('estado_venta', DB::raw('COUNT(venta_key) as total'))
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('tiempo_key', [$inicio, $fin]);
-            })
+            ->select('estado_venta', DB::raw('COUNT(venta_key) as total'));
+
+        if ($regionFiltro) {
+            $estadoVentas->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
+                ->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $estadoVentas = $aplicarFiltrosFecha($estadoVentas, $mesFiltro, $fechaInicio, $fechaFin)
             ->groupBy('estado_venta')
             ->get();
 
@@ -69,12 +101,14 @@ class DashboardController extends Controller
         $topProductos = DB::table('hechos_ventas')
             ->join('dim_productos', 'hechos_ventas.producto_key', '=', 'dim_productos.producto_key')
             ->select('dim_productos.nombre_producto', DB::raw('SUM(hechos_ventas.monto_total) as total'))
-            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada')
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
-            })
+            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada');
+
+        if ($regionFiltro) {
+            $topProductos->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
+                ->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $topProductos = $aplicarFiltrosFecha($topProductos, $mesFiltro, $fechaInicio, $fechaFin)
             ->groupBy('dim_productos.nombre_producto')
             ->orderByDesc('total')
             ->limit(5)
@@ -84,12 +118,14 @@ class DashboardController extends Controller
         $tendenciaTemporal = DB::table('hechos_ventas')
             ->join('dim_tiempo', 'hechos_ventas.tiempo_key', '=', 'dim_tiempo.tiempo_key')
             ->select('dim_tiempo.fecha', DB::raw('SUM(hechos_ventas.monto_total) as total'))
-            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada')
-            ->when($mesFiltro, function ($query, $mesFiltro) {
-                $inicio = 20240000 + ($mesFiltro * 100) + 1;
-                $fin = 20240000 + ($mesFiltro * 100) + 31;
-                return $query->whereBetween('hechos_ventas.tiempo_key', [$inicio, $fin]);
-            })
+            ->where('hechos_ventas.estado_venta', '!=', 'Cancelada');
+
+        if ($regionFiltro) {
+            $tendenciaTemporal->join('dim_clientes', 'hechos_ventas.cliente_key', '=', 'dim_clientes.cliente_key')
+                ->where('dim_clientes.region', $regionFiltro);
+        }
+
+        $tendenciaTemporal = $aplicarFiltrosFecha($tendenciaTemporal, $mesFiltro, $fechaInicio, $fechaFin)
             ->groupBy('dim_tiempo.fecha')
             ->orderBy('dim_tiempo.fecha', 'asc')
             ->get();
@@ -101,7 +137,11 @@ class DashboardController extends Controller
             'estadoVentas' => $estadoVentas,
             'topProductos' => $topProductos,
             'tendenciaTemporal' => $tendenciaTemporal,
-            'filtroActual' => $mesFiltro
+            'filtroActual' => $mesFiltro,
+            'regiones' => $regiones,
+            'regionActual' => $regionFiltro,
+            'fechaInicio' => $fechaInicio,
+            'fechaFin' => $fechaFin
         ]);
     }
 }

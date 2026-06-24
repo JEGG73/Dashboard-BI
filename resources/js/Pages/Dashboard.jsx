@@ -7,12 +7,18 @@ import { exportarExcel } from '@/utils/exportFunctions';
 const formatoMoneda = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(valor);
 const formatoNumero = (valor) => new Intl.NumberFormat('es-MX').format(valor);
 
-const cambiarMes = (e) => {
-    const mesSeleccionado = e.target.value;
-    router.get('/dashboard', { mes: mesSeleccionado }, { preserveState: true, preserveScroll: true });
+const cambiarFiltros = (mes = null, region = null, inicio = null, fin = null) => {
+    const params = {};
+    
+    if (mes !== null) params.mes = mes;
+    if (region !== null) params.region = region;
+    if (inicio !== null) params.fecha_inicio = inicio;
+    if (fin !== null) params.fecha_fin = fin;
+    
+    router.get('/dashboard', params, { preserveState: true, preserveScroll: true });
 };
 
-export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal, filtroActual }) {
+export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal, filtroActual, regiones, regionActual, fechaInicio, fechaFin }) {
 
     const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3b82f6'];
 
@@ -26,8 +32,11 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
             topProductos,
             tendenciaTemporal
         };
-        const mesTexto = filtroActual && filtroActual !== '' ? `_mes_${filtroActual}` : '';
-        exportarExcel(datosExportar, `Resultados${mesTexto}`);
+        let nombreArchivo = 'Resultados';
+        if (filtroActual) nombreArchivo += `_mes_${filtroActual}`;
+        if (regionActual) nombreArchivo += `_${regionActual}`;
+        if (fechaInicio && fechaFin) nombreArchivo += `_${fechaInicio}_a_${fechaFin}`;
+        exportarExcel(datosExportar, nombreArchivo);
     };
 
     return (
@@ -37,14 +46,14 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                 <div className="flex justify-between items-center gap-4">
                     <h2 className="font-semibold text-xl text-gray-800 leading-tight">Business Intelligence Dashboard</h2>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {/* Filtro por mes */}
                         <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
                             <Filter className="w-4 h-4 text-gray-500" />
                             <select
                                 className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
                                 value={filtroActual || ''}
-                                onChange={cambiarMes}
+                                onChange={(e) => cambiarFiltros(e.target.value || null, regionActual || null, fechaInicio || null, fechaFin || null)}
                             >
                                 <option value="">Todo el Año (2024)</option>
                                 <option value="1">Enero</option>
@@ -60,6 +69,43 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                                 <option value="11">Noviembre</option>
                                 <option value="12">Diciembre</option>
                             </select>
+                        </div>
+
+                        {/* Filtro por región */}
+                        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+                            <Filter className="w-4 h-4 text-gray-500" />
+                            <select
+                                className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                value={regionActual || ''}
+                                onChange={(e) => cambiarFiltros(filtroActual || null, e.target.value || null, fechaInicio || null, fechaFin || null)}
+                            >
+                                <option value="">Todas las Regiones</option>
+                                {regiones && regiones.map((region) => (
+                                    <option key={region} value={region}>
+                                        {region}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Filtro de rango de fechas */}
+                        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+                            <Filter className="w-4 h-4 text-gray-500" />
+                            <input
+                                type="date"
+                                className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                value={fechaInicio || ''}
+                                onChange={(e) => cambiarFiltros(null, regionActual || null, e.target.value || null, fechaFin || null)}
+                                placeholder="Desde"
+                            />
+                            <span className="text-gray-400">-</span>
+                            <input
+                                type="date"
+                                className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                value={fechaFin || ''}
+                                onChange={(e) => cambiarFiltros(null, regionActual || null, fechaInicio || null, e.target.value || null)}
+                                placeholder="Hasta"
+                            />
                         </div>
 
                         {/* Botón de exportación */}

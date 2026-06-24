@@ -9,20 +9,19 @@ const formatoNumero = (valor) => new Intl.NumberFormat('es-MX').format(valor);
 
 const cambiarFiltros = (mes = null, region = null, inicio = null, fin = null) => {
     const params = {};
-    
+
     if (mes !== null) params.mes = mes;
     if (region !== null) params.region = region;
     if (inicio !== null) params.fecha_inicio = inicio;
     if (fin !== null) params.fecha_fin = fin;
-    
+
     router.get('/dashboard', params, { preserveState: true, preserveScroll: true });
 };
 
-export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal, filtroActual, regiones, regionActual, fechaInicio, fechaFin }) {
+export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, estadoVentas, topProductos, tendenciaTemporal, filtroActual, regiones, regionActual, fechaInicio, fechaFin, alertas }) {
 
     const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3b82f6'];
 
-    // Funciones para exportación
     const handleExportarExcel = () => {
         const datosExportar = {
             kpis,
@@ -71,22 +70,24 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
                             </select>
                         </div>
 
-                        {/* Filtro por región */}
-                        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
-                            <Filter className="w-4 h-4 text-gray-500" />
-                            <select
-                                className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
-                                value={regionActual || ''}
-                                onChange={(e) => cambiarFiltros(filtroActual || null, e.target.value || null, fechaInicio || null, fechaFin || null)}
-                            >
-                                <option value="">Todas las Regiones</option>
-                                {regiones && regiones.map((region) => (
-                                    <option key={region} value={region}>
-                                        {region}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Filtro por región (solo para admin) */}
+                        {auth.user.role === 'admin' && (
+                            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+                                <Filter className="w-4 h-4 text-gray-500" />
+                                <select
+                                    className="border-0 bg-transparent text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                    value={regionActual || ''}
+                                    onChange={(e) => cambiarFiltros(filtroActual || null, e.target.value || null, fechaInicio || null, fechaFin || null)}
+                                >
+                                    <option value="">Todas las Regiones</option>
+                                    {regiones && regiones.map((region) => (
+                                        <option key={region} value={region}>
+                                            {region}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Filtro de rango de fechas */}
                         <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
@@ -125,6 +126,24 @@ export default function Dashboard({ auth, kpis, ventasPorRegion, metodosPago, es
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+
+                    {alertas && alertas.length > 0 && (
+                        <div className="mb-6 space-y-3">
+                            {alertas.map((alerta, index) => (
+                                <div key={index} className={`p-4 rounded-lg flex items-center shadow-sm border ${alerta.tipo === 'danger' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                                    }`}>
+                                    <div className="font-semibold text-sm">{alerta.mensaje}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* AVISO DE ROL */}
+                    {auth.user.role !== 'admin' && (
+                        <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg text-sm flex justify-between items-center">
+                            <span>Estás visualizando el dashboard en modo <b>Vendedor</b>. Solo tienes acceso a los datos de la región: <b>{auth.user.zona_asignada || 'Centro'}</b>.</span>
+                        </div>
+                    )}
 
                     {/* Nivel Ejecutivo */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

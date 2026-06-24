@@ -10,12 +10,18 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+
         $mesFiltro = $request->input('mes');
-        $regionFiltro = $request->input('region');
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
 
-        // Obtener lista de regiones disponibles
+        if ($user->role !== 'admin') {
+            $regionFiltro = $user->zona_asignada ?? 'Centro';
+        } else {
+            $regionFiltro = $request->input('region');
+        }
+
         $regiones = DB::table('dim_clientes')
             ->select('region')
             ->distinct()
@@ -23,7 +29,6 @@ class DashboardController extends Controller
             ->pluck('region')
             ->toArray();
 
-        // Función auxiliar para aplicar filtros de fecha
         $aplicarFiltrosFecha = function ($query, $mesFiltro, $fechaInicio, $fechaFin) {
             if ($mesFiltro) {
                 $inicio = 20240000 + ($mesFiltro * 100) + 1;
@@ -130,6 +135,24 @@ class DashboardController extends Controller
             ->orderBy('dim_tiempo.fecha', 'asc')
             ->get();
 
+        // Alertas automatizadas basadas en KPIs y métricas clave
+        $alertas = [];
+
+        if ($kpis && $kpis->ingreso_total < 6000) {
+            $alertas[] = [
+                'tipo' => 'danger',
+                'mensaje' => 'Alerta Crítica: Los ingresos bajo el filtro actual ($' . number_format($kpis->ingreso_total, 2) . ') están por debajo del umbral mínimo de rentabilidad.'
+            ];
+        }
+
+        $canceladas = $estadoVentas->firstWhere('estado_venta', 'Cancelada');
+        if ($canceladas && $canceladas->total > 50) {
+            $alertas[] = [
+                'tipo' => 'warning',
+                'mensaje' => 'Advertencia Operativa: Se ha detectado un volumen alto (' . $canceladas->total . ') de transacciones canceladas. Se requiere revisión inmediata.'
+            ];
+        }
+
         return Inertia::render('Dashboard', [
             'kpis' => $kpis,
             'ventasPorRegion' => $ventasPorRegion,
@@ -141,7 +164,9 @@ class DashboardController extends Controller
             'regiones' => $regiones,
             'regionActual' => $regionFiltro,
             'fechaInicio' => $fechaInicio,
-            'fechaFin' => $fechaFin
+            'fechaFin' => $fechaFin,
+            'alertas' => $alertas,
+            'rolUsuario' => $user->role
         ]);
     }
 }
